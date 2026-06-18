@@ -4,71 +4,69 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MapTap — Geography Quiz</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app">
-    <!-- Splash / Difficulty Screen -->
-    <div id="splash">
-      <div class="splash-card">
-        <h1>🌍 MapTap</h1>
-        <p class="tagline">Tap the map. Race the clock.</p>
-        <div class="difficulty-buttons">
-          <button class="btn-diff easy"   data-diff="easy">Easy <span>30 s</span></button>
-          <button class="btn-diff medium" data-diff="medium">Medium <span>15 s</span></button>
-          <button class="btn-diff hard"   data-diff="hard">Hard <span>5 s</span></button>
-        </div>
-        <p class="hint">Choose a difficulty to start</p>
+
+  <!-- Globe lives at full viewport; everything else overlays it -->
+  <div id="globe-container"></div>
+
+  <!-- Splash -->
+  <div id="splash" class="overlay">
+    <div class="splash-card">
+      <h1>🌍 MapTap</h1>
+      <p class="tagline">Spin the globe. Find the place. Beat the clock.</p>
+      <div class="difficulty-buttons">
+        <button class="btn-diff easy"   data-diff="easy">Easy <span>30 s</span></button>
+        <button class="btn-diff medium" data-diff="medium">Medium <span>15 s</span></button>
+        <button class="btn-diff hard"   data-diff="hard">Hard <span>5 s</span></button>
+      </div>
+      <p class="hint">Choose a difficulty to start</p>
+    </div>
+  </div>
+
+  <!-- HUD (fixed top bar) -->
+  <div id="hud" class="hidden">
+    <div id="hud-left">
+      <span id="score-label">Score</span>
+      <span id="score">0</span>
+    </div>
+    <div id="hud-center">
+      <div id="clue-box">
+        <span id="question-num"></span>
+        <span id="clue-text">Loading…</span>
       </div>
     </div>
-
-    <!-- HUD -->
-    <div id="hud" class="hidden">
-      <div id="hud-left">
-        <span id="score-label">Score</span>
-        <span id="score">0</span>
+    <div id="hud-right">
+      <div id="timer-ring-wrapper">
+        <svg id="timer-ring" viewBox="0 0 44 44">
+          <circle class="ring-bg" cx="22" cy="22" r="18" />
+          <circle id="ring-progress" class="ring-fg" cx="22" cy="22" r="18"
+            stroke-dasharray="113.1" stroke-dashoffset="0" />
+        </svg>
+        <span id="timer-num">30</span>
       </div>
-      <div id="hud-center">
-        <div id="clue-box">
-          <span id="question-num"></span>
-          <span id="clue-text">Loading…</span>
-        </div>
-      </div>
-      <div id="hud-right">
-        <div id="timer-ring-wrapper">
-          <svg id="timer-ring" viewBox="0 0 44 44">
-            <circle class="ring-bg" cx="22" cy="22" r="18" />
-            <circle id="ring-progress" class="ring-fg" cx="22" cy="22" r="18"
-              stroke-dasharray="113.1" stroke-dashoffset="0" />
-          </svg>
-          <span id="timer-num">30</span>
-        </div>
-        <button id="btn-quit">✕ Quit</button>
-      </div>
+      <button id="btn-quit">✕ Quit</button>
     </div>
+  </div>
 
-    <!-- Feedback banner -->
-    <div id="feedback" class="hidden"></div>
+  <!-- Feedback banner -->
+  <div id="feedback" class="hidden"></div>
 
-    <!-- Map -->
-    <div id="map" class="hidden"></div>
-
-    <!-- Results Screen -->
-    <div id="results" class="hidden">
-      <div class="results-card">
-        <h2>Round Over</h2>
-        <div id="final-score-display"></div>
-        <div id="result-list"></div>
-        <div class="results-actions">
-          <button id="btn-play-again">Play Again</button>
-          <button id="btn-change-diff">Change Difficulty</button>
-        </div>
+  <!-- Results -->
+  <div id="results" class="overlay hidden">
+    <div class="results-card">
+      <h2>Round Over</h2>
+      <div id="final-score-display"></div>
+      <div id="result-list"></div>
+      <div class="results-actions">
+        <button id="btn-play-again">Play Again</button>
+        <button id="btn-change-diff">Change Difficulty</button>
       </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/globe.gl@2.31.1/dist/globe.gl.min.js"></script>
   <script src="questions.js"></script>
   <script src="game.js"></script>
 </body>

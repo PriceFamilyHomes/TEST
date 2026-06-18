@@ -1,31 +1,70 @@
 /* ── Constants ──────────────────────────────────────────── */
-const DIFF_TIME  = { easy: 30, medium: 15, hard: 5 };
+const DIFF_TIME       = { easy: 30, medium: 15, hard: 5 };
 const QUESTIONS_PER_ROUND = 10;
-const RING_CIRC    = 113.1;    // 2πr for r=18
-// Scoring: exponential decay — 100 at 0 km, ~37 at 3000 km, ~1 at 15000 km
-const SCORE_DECAY_KM = 3000;
+const RING_CIRC       = 113.1;
+const SCORE_DECAY_KM  = 3000;
 
 /* ── State ──────────────────────────────────────────────── */
-let map, difficulty, questions, currentIdx, score;
+let globe, difficulty, questions, currentIdx, score;
 let timerInterval, timeLeft, totalTime;
 let results = [];
-let guessMarker, answerMarker;
 let answered = false;
 
 /* ── DOM refs ───────────────────────────────────────────── */
-const $ = id => document.getElementById(id);
-const splash     = $('splash');
-const hud        = $('hud');
-const mapEl      = $('map');
-const resultsEl  = $('results');
-const feedback   = $('feedback');
-const scoreEl    = $('score');
-const clueText   = $('clue-text');
-const questionNum= $('question-num');
-const timerNum   = $('timer-num');
-const ringFg     = $('ring-progress');
+const $  = id => document.getElementById(id);
+const splash    = $('splash');
+const hud       = $('hud');
+const resultsEl = $('results');
+const feedback  = $('feedback');
+const scoreEl   = $('score');
+const clueText  = $('clue-text');
+const questionNum = $('question-num');
+const timerNum  = $('timer-num');
+const ringFg    = $('ring-progress');
 
-/* ── Difficulty selection ───────────────────────────────── */
+/* ── Globe init ─────────────────────────────────────────── */
+function initGlobe() {
+  if (globe) return;
+
+  globe = Globe({ animateIn: true })
+    .width(window.innerWidth)
+    .height(window.innerHeight)
+    .backgroundColor('rgba(0,0,0,0)')
+    .showAtmosphere(true)
+    .atmosphereColor('#4488ff')
+    .atmosphereAltitude(0.18)
+    // Satellite imagery — real colors, roads, cities, zero labels
+    .tilesImageUrl(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    )
+    .pointsData([])
+    .pointLat('lat')
+    .pointLng('lng')
+    .pointColor('color')
+    .pointRadius('radius')
+    .pointAltitude(0.005)
+    .pointResolution(12)
+    .arcsData([])
+    .arcColor('color')
+    .arcStroke(0.6)
+    .arcDashLength(0.5)
+    .arcDashGap(0.25)
+    .arcDashAnimateTime(2000)
+    .onGlobeClick(({ lat, lng }) => onGlobeClick(lat, lng))
+    ($('globe-container'));
+
+  // Auto-rotate gently on splash
+  globe.controls().autoRotate = true;
+  globe.controls().autoRotateSpeed = 0.6;
+  globe.controls().enableZoom = true;
+  globe.controls().minDistance = 150;
+
+  window.addEventListener('resize', () => {
+    globe.width(window.innerWidth).height(window.innerHeight);
+  });
+}
+
+/* ── Difficulty buttons ─────────────────────────────────── */
 document.querySelectorAll('.btn-diff').forEach(btn => {
   btn.addEventListener('click', () => {
     difficulty = btn.dataset.diff;
@@ -33,102 +72,89 @@ document.querySelectorAll('.btn-diff').forEach(btn => {
   });
 });
 $('btn-quit').addEventListener('click', endGame);
-$('btn-play-again').addEventListener('click', () => {
-  showScreen('splash');
-  setTimeout(() => startGame(), 0);   // re-use same difficulty
-});
+$('btn-play-again').addEventListener('click', () => startGame());
 $('btn-change-diff').addEventListener('click', () => showScreen('splash'));
-
-/* ── Map init ───────────────────────────────────────────── */
-function initMap() {
-  if (map) return;
-  map = L.map('map', {
-    center: [20, 0],
-    zoom: 2,
-    minZoom: 2,
-    maxZoom: 10,
-    worldCopyJump: true,
-    zoomControl: true,
-  });
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap contributors © CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19,
-  }).addTo(map);
-
-  map.on('click', onMapClick);
-}
 
 /* ── Game flow ──────────────────────────────────────────── */
 function startGame() {
   score = 0; currentIdx = 0; results = [];
   questions = getShuffledQuestions(QUESTIONS_PER_ROUND);
-  showScreen('game');
   scoreEl.textContent = '0';
-  initMap();
-  setTimeout(() => { map.invalidateSize(); loadQuestion(); }, 50);
+  showScreen('game');
+  initGlobe();
+  // Stop rotation while playing
+  globe.controls().autoRotate = false;
+  loadQuestion();
 }
 
 function loadQuestion() {
   answered = false;
   clearMarkers();
+
   const q = questions[currentIdx];
   questionNum.textContent = `Q${currentIdx + 1} / ${questions.length}`;
   clueText.textContent = q.clue;
+
   totalTime = DIFF_TIME[difficulty];
   timeLeft  = totalTime;
   updateTimerDisplay(timeLeft, totalTime);
   startTimer();
 }
 
-function distanceScore(km) {
-  return Math.max(1, Math.round(100 * Math.exp(-km / SCORE_DECAY_KM)));
-}
-
-function scoreClass(pts) {
-  if (pts >= 75) return 'guess-marker';    // green
-  if (pts >= 40) return 'warn-marker';     // orange
-  return 'wrong-marker';                   // red
-}
-
-function onMapClick(e) {
+function onGlobeClick(lat, lng) {
   if (answered) return;
   answered = true;
   stopTimer();
 
-  const q = questions[currentIdx];
-  const dist = haversineKm(e.latlng.lat, e.latlng.lng, q.lat, q.lng);
+  const q   = questions[currentIdx];
+  const dist = haversineKm(lat, lng, q.lat, q.lng);
   const pts  = distanceScore(dist);
-  const distRounded = Math.round(dist);
+  const dr   = Math.round(dist);
 
-  guessMarker  = placeMarker(e.latlng.lat, e.latlng.lng, scoreClass(pts));
-  answerMarker = placeMarker(q.lat, q.lng, 'answer-marker');
+  // Guess marker colour reflects accuracy
+  const gColor = pts >= 75 ? '#27ae60' : pts >= 40 ? '#e67e22' : '#e74c3c';
+  const answerColor = '#ffffff';
 
-  L.polyline([[e.latlng.lat, e.latlng.lng], [q.lat, q.lng]], {
-    color: '#6b7280', weight: 2, dashArray: '6,4', opacity: .7
-  }).addTo(map);
+  globe
+    .pointsData([
+      { lat, lng, color: gColor,     radius: 0.5 },
+      { lat: q.lat, lng: q.lng, color: answerColor, radius: 0.5 },
+    ])
+    .arcsData([{
+      startLat: lat, startLng: lng,
+      endLat: q.lat, endLng: q.lng,
+      color: ['rgba(150,150,150,0.7)', 'rgba(150,150,150,0.7)'],
+    }]);
+
+  // Fly to show both points
+  const midLat = (lat + q.lat) / 2;
+  const midLng = midLng_(lng, q.lng);
+  globe.pointOfView({ lat: midLat, lng: midLng, altitude: altitudeForDist(dist) }, 800);
 
   score += pts;
   scoreEl.textContent = score;
 
-  results.push({ label: q.label, pts, dist: distRounded, timedOut: false });
-
-  const distLabel = distRounded === 0 ? 'Perfect!' : `${distRounded.toLocaleString()} km away`;
+  const distLabel = dr < 2 ? 'Perfect!' : `${dr.toLocaleString()} km away`;
   const fbClass   = pts >= 75 ? 'correct' : pts >= 40 ? 'warn' : 'wrong';
-  showFeedback(`${pts}/100  —  ${distLabel}`, fbClass);
+  showFeedback(`${scoreEmoji(pts)} ${pts}/100 — ${distLabel}`, fbClass);
 
-  setTimeout(nextQuestion, 2000);
+  results.push({ label: q.label, pts, dist: dr, timedOut: false });
+  setTimeout(nextQuestion, 2200);
 }
 
 function onTimeout() {
   if (answered) return;
   answered = true;
+
   const q = questions[currentIdx];
-  answerMarker = placeMarker(q.lat, q.lng, 'answer-marker');
+  globe
+    .pointsData([{ lat: q.lat, lng: q.lng, color: '#ffffff', radius: 0.5 }])
+    .arcsData([]);
+  globe.pointOfView({ lat: q.lat, lng: q.lng, altitude: 2.0 }, 800);
+
   results.push({ label: q.label, pts: 0, dist: null, timedOut: true });
   showFeedback('⏱ Time\'s up! — 0/100', 'timeout');
-  setTimeout(nextQuestion, 2000);
+  setTimeout(nextQuestion, 2200);
 }
 
 function nextQuestion() {
@@ -137,13 +163,16 @@ function nextQuestion() {
   if (currentIdx >= questions.length) {
     endGame();
   } else {
-    map.flyTo([20, 0], 2, { duration: .6 });
-    setTimeout(loadQuestion, 650);
+    // Slow zoom-out between questions
+    globe.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 600);
+    setTimeout(loadQuestion, 700);
   }
 }
 
 function endGame() {
   stopTimer();
+  clearMarkers();
+  globe.controls().autoRotate = true;
   showScreen('results');
   renderResults();
 }
@@ -154,22 +183,15 @@ function startTimer() {
   timerInterval = setInterval(() => {
     timeLeft = Math.max(0, timeLeft - 0.1);
     updateTimerDisplay(timeLeft, totalTime);
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      onTimeout();
-    }
+    if (timeLeft <= 0) { clearInterval(timerInterval); onTimeout(); }
   }, 100);
 }
-
 function stopTimer() { clearInterval(timerInterval); }
 
 function updateTimerDisplay(left, total) {
   const pct = left / total;
-  const offset = RING_CIRC * (1 - pct);
-  ringFg.style.strokeDashoffset = offset;
+  ringFg.style.strokeDashoffset = RING_CIRC * (1 - pct);
   timerNum.textContent = Math.ceil(left);
-
-  // Color coding
   const warn   = pct < .5;
   const danger = pct < .25;
   ringFg.classList.toggle('warn',   warn && !danger);
@@ -190,31 +212,26 @@ function hideFeedback() {
 }
 
 /* ── Markers ────────────────────────────────────────────── */
-function placeMarker(lat, lng, cls) {
-  const icon = L.divIcon({ className: `pulse-marker ${cls}`, iconSize: [16, 16], iconAnchor: [8, 8] });
-  return L.marker([lat, lng], { icon }).addTo(map);
-}
 function clearMarkers() {
-  if (guessMarker)  map.removeLayer(guessMarker);
-  if (answerMarker) map.removeLayer(answerMarker);
-  guessMarker = answerMarker = null;
-  // Remove polylines
-  map.eachLayer(l => { if (l instanceof L.Polyline) map.removeLayer(l); });
+  globe && globe.pointsData([]).arcsData([]);
 }
 
+/* ── Scoring ────────────────────────────────────────────── */
+function distanceScore(km) {
+  return Math.max(1, Math.round(100 * Math.exp(-km / SCORE_DECAY_KM)));
+}
 function scoreEmoji(pts) {
   if (pts === 100) return '💯';
-  if (pts >= 90)  return '🤩';
-  if (pts >= 75)  return '😄';
-  if (pts >= 60)  return '😊';
-  if (pts >= 45)  return '🙂';
-  if (pts >= 30)  return '😐';
-  if (pts >= 15)  return '😕';
-  if (pts >= 1)   return '😢';
-  return '💀';
+  if (pts >= 90)   return '🤩';
+  if (pts >= 75)   return '😄';
+  if (pts >= 60)   return '😊';
+  if (pts >= 45)   return '🙂';
+  if (pts >= 30)   return '😐';
+  if (pts >= 15)   return '😕';
+  return '😢';
 }
 
-/* ── Results screen ─────────────────────────────────────── */
+/* ── Results ────────────────────────────────────────────── */
 function renderResults() {
   const maxScore = questions.length * 100;
   $('final-score-display').textContent = `${score} / ${maxScore}`;
@@ -226,16 +243,15 @@ function renderResults() {
     if (r.timedOut) {
       cls = 'ri-timeout'; distLabel = 'Timed out';
     } else if (r.pts >= 75) {
-      cls = 'ri-correct'; distLabel = r.dist === 0 ? 'Perfect!' : `${r.dist.toLocaleString()} km away`;
+      cls = 'ri-correct'; distLabel = r.dist < 2 ? 'Perfect!' : `${r.dist.toLocaleString()} km away`;
     } else if (r.pts >= 40) {
       cls = 'ri-warn';    distLabel = `${r.dist.toLocaleString()} km away`;
     } else {
-      cls = 'ri-wrong';   distLabel = r.timedOut ? 'Timed out' : `${r.dist.toLocaleString()} km away`;
+      cls = 'ri-wrong';   distLabel = `${r.dist.toLocaleString()} km away`;
     }
     const emoji = r.timedOut ? '⏱️' : scoreEmoji(r.pts);
-    const scoreDisplay = r.timedOut ? '0' : r.pts;
     div.className = `result-item ${cls}`;
-    div.innerHTML = `<span class="ri-score"><span class="ri-emoji">${emoji}</span>${scoreDisplay}<small>/100</small></span><span>${r.label}</span><span class="ri-dist">${distLabel}</span>`;
+    div.innerHTML = `<span class="ri-score"><span class="ri-emoji">${emoji}</span>${r.timedOut ? 0 : r.pts}<small>/100</small></span><span>${r.label}</span><span class="ri-dist">${distLabel}</span>`;
     list.appendChild(div);
   });
 }
@@ -244,26 +260,39 @@ function renderResults() {
 function showScreen(screen) {
   splash.classList.add('hidden');
   hud.classList.add('hidden');
-  mapEl.classList.add('hidden');
   resultsEl.classList.add('hidden');
   feedback.className = 'hidden';
 
-  if (screen === 'splash') {
-    splash.classList.remove('hidden');
-  } else if (screen === 'game') {
-    hud.classList.remove('hidden');
-    mapEl.classList.remove('hidden');
-  } else if (screen === 'results') {
-    resultsEl.classList.remove('hidden');
-  }
+  if (screen === 'splash')  { splash.classList.remove('hidden'); }
+  else if (screen === 'game')    { hud.classList.remove('hidden'); }
+  else if (screen === 'results') { resultsEl.classList.remove('hidden'); }
 }
 
-/* ── Haversine distance ─────────────────────────────────── */
+/* ── Helpers ────────────────────────────────────────────── */
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2)**2 +
-            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+
+function midLng_(a, b) {
+  // handle anti-meridian wrap
+  let d = b - a;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return a + d / 2;
+}
+
+function altitudeForDist(km) {
+  // zoom in tight for close, farther for far
+  if (km < 200)   return 0.8;
+  if (km < 800)   return 1.2;
+  if (km < 3000)  return 1.8;
+  return 2.5;
+}
+
+/* ── Boot ───────────────────────────────────────────────── */
+initGlobe();
