@@ -93,6 +93,7 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; backg
   transition: opacity .3s;
 }
 #feedback.correct  { background: var(--easy);   color: #fff; }
+#feedback.warn     { background: var(--medium);  color: #fff; }
 #feedback.wrong    { background: var(--hard);    color: #fff; }
 #feedback.timeout  { background: #4b5563;        color: #fff; }
 
@@ -103,9 +104,10 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; backg
   animation: pulse 1s infinite;
 }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px rgba(255,255,255,.3); } 50% { box-shadow: 0 0 0 8px rgba(255,255,255,.0); } }
-.guess-marker  { background: var(--accent); }
-.answer-marker { background: var(--easy); }
+.guess-marker  { background: var(--easy); }
+.warn-marker   { background: var(--medium); }
 .wrong-marker  { background: var(--hard); }
+.answer-marker { background: #fff; }
 
 /* ── Results ──────────────────────────────────────────── */
 #results {
@@ -127,11 +129,13 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; backg
   padding: .5rem .75rem; border-radius: .5rem; margin-bottom: .4rem;
   font-size: .9rem; background: rgba(255,255,255,.04);
 }
-.result-item .ri-icon { font-size: 1.1rem; flex-shrink: 0; }
-.result-item .ri-dist { margin-left: auto; font-size: .8rem; color: #9ca3af; }
-.result-item.ri-correct .ri-icon::before { content: '✓'; color: var(--easy); }
-.result-item.ri-wrong   .ri-icon::before { content: '✗'; color: var(--hard); }
-.result-item.ri-timeout .ri-icon::before { content: '⏱'; color: #6b7280; }
+.result-item .ri-dist { margin-left: auto; font-size: .8rem; color: #9ca3af; white-space: nowrap; }
+.ri-score { font-size: 1rem; font-weight: 800; min-width: 48px; flex-shrink: 0; }
+.ri-score small { font-size: .65rem; font-weight: 400; opacity: .6; }
+.result-item.ri-correct .ri-score { color: var(--easy); }
+.result-item.ri-warn    .ri-score { color: var(--medium); }
+.result-item.ri-wrong   .ri-score { color: var(--hard); }
+.result-item.ri-timeout .ri-score { color: #6b7280; }
 
 .results-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 .results-actions button {

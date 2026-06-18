@@ -1,8 +1,9 @@
 /* ── Constants ──────────────────────────────────────────── */
 const DIFF_TIME  = { easy: 30, medium: 15, hard: 5 };
 const QUESTIONS_PER_ROUND = 10;
-const TOLERANCE_KM = 500;      // within 500 km counts as correct
 const RING_CIRC    = 113.1;    // 2πr for r=18
+// Scoring: exponential decay — 100 at 0 km, ~37 at 3000 km, ~1 at 15000 km
+const SCORE_DECAY_KM = 3000;
 
 /* ── State ──────────────────────────────────────────────── */
 let map, difficulty, questions, currentIdx, score;
@@ -81,6 +82,16 @@ function loadQuestion() {
   startTimer();
 }
 
+function distanceScore(km) {
+  return Math.max(1, Math.round(100 * Math.exp(-km / SCORE_DECAY_KM)));
+}
+
+function scoreClass(pts) {
+  if (pts >= 75) return 'guess-marker';    // green
+  if (pts >= 40) return 'warn-marker';     // orange
+  return 'wrong-marker';                   // red
+}
+
 function onMapClick(e) {
   if (answered) return;
   answered = true;
@@ -88,27 +99,24 @@ function onMapClick(e) {
 
   const q = questions[currentIdx];
   const dist = haversineKm(e.latlng.lat, e.latlng.lng, q.lat, q.lng);
-  const correct = dist <= TOLERANCE_KM;
+  const pts  = distanceScore(dist);
+  const distRounded = Math.round(dist);
 
-  // Place guess marker
-  guessMarker = placeMarker(e.latlng.lat, e.latlng.lng, correct ? 'guess-marker' : 'wrong-marker');
-
-  // Always show answer
+  guessMarker  = placeMarker(e.latlng.lat, e.latlng.lng, scoreClass(pts));
   answerMarker = placeMarker(q.lat, q.lng, 'answer-marker');
 
-  // Draw a line between guess and answer if wrong
-  if (!correct) {
-    L.polyline([[e.latlng.lat, e.latlng.lng], [q.lat, q.lng]], {
-      color: '#6b7280', weight: 2, dashArray: '6,4', opacity: .7
-    }).addTo(map);
-  }
+  L.polyline([[e.latlng.lat, e.latlng.lng], [q.lat, q.lng]], {
+    color: '#6b7280', weight: 2, dashArray: '6,4', opacity: .7
+  }).addTo(map);
 
-  const points = correct ? Math.max(100, Math.round((timeLeft / totalTime) * 500)) : 0;
-  score += points;
+  score += pts;
   scoreEl.textContent = score;
 
-  results.push({ label: q.label, correct, dist: Math.round(dist), timedOut: false });
-  showFeedback(correct ? `✓ +${points} pts` : `✗  ${Math.round(dist).toLocaleString()} km off`, correct ? 'correct' : 'wrong');
+  results.push({ label: q.label, pts, dist: distRounded, timedOut: false });
+
+  const distLabel = distRounded === 0 ? 'Perfect!' : `${distRounded.toLocaleString()} km away`;
+  const fbClass   = pts >= 75 ? 'correct' : pts >= 40 ? 'warn' : 'wrong';
+  showFeedback(`${pts}/100  —  ${distLabel}`, fbClass);
 
   setTimeout(nextQuestion, 2000);
 }
@@ -118,8 +126,8 @@ function onTimeout() {
   answered = true;
   const q = questions[currentIdx];
   answerMarker = placeMarker(q.lat, q.lng, 'answer-marker');
-  results.push({ label: q.label, correct: false, dist: null, timedOut: true });
-  showFeedback('⏱ Time\'s up!', 'timeout');
+  results.push({ label: q.label, pts: 0, dist: null, timedOut: true });
+  showFeedback('⏱ Time\'s up! — 0/100', 'timeout');
   setTimeout(nextQuestion, 2000);
 }
 
@@ -196,18 +204,24 @@ function clearMarkers() {
 
 /* ── Results screen ─────────────────────────────────────── */
 function renderResults() {
-  $('final-score-display').textContent = `${score} pts`;
+  const maxScore = questions.length * 100;
+  $('final-score-display').textContent = `${score} / ${maxScore}`;
   const list = $('result-list');
   list.innerHTML = '';
   results.forEach(r => {
     const div = document.createElement('div');
-    const cls = r.timedOut ? 'ri-timeout' : r.correct ? 'ri-correct' : 'ri-wrong';
-    let dist = '';
-    if (r.dist !== null && !r.correct) dist = `${r.dist.toLocaleString()} km off`;
-    if (r.correct) dist = 'Correct!';
-    if (r.timedOut) dist = 'Timed out';
+    let cls, distLabel;
+    if (r.timedOut) {
+      cls = 'ri-timeout'; distLabel = 'Timed out';
+    } else if (r.pts >= 75) {
+      cls = 'ri-correct'; distLabel = r.dist === 0 ? 'Perfect!' : `${r.dist.toLocaleString()} km away`;
+    } else if (r.pts >= 40) {
+      cls = 'ri-warn';    distLabel = `${r.dist.toLocaleString()} km away`;
+    } else {
+      cls = 'ri-wrong';   distLabel = `${r.dist.toLocaleString()} km away`;
+    }
     div.className = `result-item ${cls}`;
-    div.innerHTML = `<span class="ri-icon"></span><span>${r.label}</span><span class="ri-dist">${dist}</span>`;
+    div.innerHTML = `<span class="ri-score">${r.timedOut ? '0' : r.pts}<small>/100</small></span><span>${r.label}</span><span class="ri-dist">${distLabel}</span>`;
     list.appendChild(div);
   });
 }
