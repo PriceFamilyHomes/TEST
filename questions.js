@@ -290,8 +290,6 @@ const QUESTIONS = [
   { clue: "Plitvice Lakes, Lika-Senj, Croatia",        lat: 44.8654,  lng: 15.5820,   label: "Plitvice Lakes, Croatia" },
   { clue: "Waitomo Glowworm Caves, Waikato, New Zealand", lat: -38.2614, lng: 175.1047, label: "Waitomo Caves, New Zealand" },
   { clue: "Chocolate Hills, Bohol, Philippines",       lat: 9.7940,   lng: 124.1756,  label: "Chocolate Hills, Philippines" },
-];
-
   // ── Additional Europe ────────────────────────────────────────────────────
   { clue: "Eiffel Tower (night view from Trocadéro), Paris, France", lat: 48.8614, lng: 2.2893, label: "Trocadéro, Paris" },
   { clue: "Musée d'Orsay, Paris, France",               lat: 48.8600,  lng: 2.3266,   label: "Musée d'Orsay, Paris" },

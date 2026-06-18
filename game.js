@@ -33,10 +33,7 @@ function initGlobe() {
     .showAtmosphere(true)
     .atmosphereColor('#4488ff')
     .atmosphereAltitude(0.18)
-    // Satellite imagery — real colors, roads, cities, zero labels
-    .tilesImageUrl(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    )
+    .globeImageUrl('earth.jpg')
     .pointsData([])
     .pointLat('lat')
     .pointLng('lng')
