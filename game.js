@@ -202,6 +202,18 @@ function clearMarkers() {
   map.eachLayer(l => { if (l instanceof L.Polyline) map.removeLayer(l); });
 }
 
+function scoreEmoji(pts) {
+  if (pts === 100) return '💯';
+  if (pts >= 90)  return '🤩';
+  if (pts >= 75)  return '😄';
+  if (pts >= 60)  return '😊';
+  if (pts >= 45)  return '🙂';
+  if (pts >= 30)  return '😐';
+  if (pts >= 15)  return '😕';
+  if (pts >= 1)   return '😢';
+  return '💀';
+}
+
 /* ── Results screen ─────────────────────────────────────── */
 function renderResults() {
   const maxScore = questions.length * 100;
@@ -218,10 +230,12 @@ function renderResults() {
     } else if (r.pts >= 40) {
       cls = 'ri-warn';    distLabel = `${r.dist.toLocaleString()} km away`;
     } else {
-      cls = 'ri-wrong';   distLabel = `${r.dist.toLocaleString()} km away`;
+      cls = 'ri-wrong';   distLabel = r.timedOut ? 'Timed out' : `${r.dist.toLocaleString()} km away`;
     }
+    const emoji = r.timedOut ? '⏱️' : scoreEmoji(r.pts);
+    const scoreDisplay = r.timedOut ? '0' : r.pts;
     div.className = `result-item ${cls}`;
-    div.innerHTML = `<span class="ri-score">${r.timedOut ? '0' : r.pts}<small>/100</small></span><span>${r.label}</span><span class="ri-dist">${distLabel}</span>`;
+    div.innerHTML = `<span class="ri-score"><span class="ri-emoji">${emoji}</span>${scoreDisplay}<small>/100</small></span><span>${r.label}</span><span class="ri-dist">${distLabel}</span>`;
     list.appendChild(div);
   });
 }

@@ -130,8 +130,9 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; backg
   font-size: .9rem; background: rgba(255,255,255,.04);
 }
 .result-item .ri-dist { margin-left: auto; font-size: .8rem; color: #9ca3af; white-space: nowrap; }
-.ri-score { font-size: 1rem; font-weight: 800; min-width: 48px; flex-shrink: 0; }
+.ri-score { font-size: 1rem; font-weight: 800; min-width: 64px; flex-shrink: 0; display: flex; align-items: center; gap: .25rem; }
 .ri-score small { font-size: .65rem; font-weight: 400; opacity: .6; }
+.ri-emoji { font-size: 1.2rem; line-height: 1; }
 .result-item.ri-correct .ri-score { color: var(--easy); }
 .result-item.ri-warn    .ri-score { color: var(--medium); }
 .result-item.ri-wrong   .ri-score { color: var(--hard); }
