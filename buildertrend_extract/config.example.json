@@ -1,0 +1,42 @@
+{
+  "_comment": "Copy this file to config.json and fill in real values. Never commit config.json (it holds your session cookie).",
+
+  "cookie": "PASTE_FULL_COOKIE_HEADER_FROM_CAPTURED_REQUEST",
+
+  "extra_headers": {
+    "_comment": "Buildertrend's SPA often sends an anti-forgery / API token header alongside the cookie. Copy any header from the captured request that isn't Cookie/User-Agent/Accept-Encoding here.",
+    "X-Requested-With": "XMLHttpRequest"
+  },
+
+  "base_url": "https://app.buildertrend.net",
+
+  "entities": {
+    "bids": {
+      "_comment": "Fill in from capture/bids.curl.txt via parse_curl.py",
+      "list_path": "/api/TODO/bids?jobId={job_id}&page={page}&pageSize={page_size}",
+      "method": "GET",
+      "body_template": null,
+      "page_param_style": "page_number",
+      "items_key": "items",
+      "total_key": "totalCount"
+    },
+    "pos": {
+      "list_path": "/api/TODO/purchase-orders?jobId={job_id}&page={page}&pageSize={page_size}",
+      "method": "GET",
+      "body_template": null,
+      "page_param_style": "page_number",
+      "items_key": "items",
+      "total_key": "totalCount"
+    },
+    "invoices": {
+      "list_path": "/api/TODO/invoices?jobId={job_id}&page={page}&pageSize={page_size}",
+      "method": "GET",
+      "body_template": null,
+      "page_param_style": "page_number",
+      "items_key": "items",
+      "total_key": "totalCount"
+    }
+  },
+
+  "page_size": 50
+}

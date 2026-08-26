@@ -1,0 +1,5 @@
+config.json
+capture/*.curl.txt
+output/
+__pycache__/
+*.pyc
